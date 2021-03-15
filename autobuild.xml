@@ -4,17 +4,17 @@
     <key>package_description</key>
     <map>
       <key>canonical_repo</key>
-      <string>https://bitbucket.org/lindenlab/3p-zlib</string>
+      <string>https://git.alchemyviewer.org/alchemy/thirdparty/3p-zlib-ng</string>
       <key>copyright</key>
       <string>Copyright (C) 1995-2017 Jean-loup Gailly and Mark Adler</string>
       <key>description</key>
-      <string>Zlib Data Compression Library</string>
+      <string>zlib replacement with optimizations for next generation systems.</string>
       <key>license</key>
       <string>zlib</string>
       <key>license_file</key>
-      <string>LICENSES/zlib.txt</string>
+      <string>LICENSES/zlib-ng.txt</string>
       <key>name</key>
-      <string>zlib</string>
+      <string>zlib-ng</string>
       <key>platforms</key>
       <map>
         <key>common</key>
@@ -42,10 +42,7 @@
           <key>manifest</key>
           <array>
             <string>include/zlib/*.h</string>
-            <string>include/minizip/*.h</string>
             <string>LICENSES/zlib.txt</string>
-            <string>LICENSES/minizip.txt</string>
-            <string>docs/zlib/README.Linden</string>
           </array>
           <key>name</key>
           <string>common</string>

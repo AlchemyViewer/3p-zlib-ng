@@ -9,7 +9,7 @@ set -e
 # bleat on references to undefined shell variables
 set -u
 
-ZLIB_SOURCE_DIR="zlib"
+ZLIB_SOURCE_DIR="zlib-ng"
 
 top="$(pwd)"
 stage="$top"/stage
@@ -28,7 +28,7 @@ source_environment_tempfile="$stage/source_environment.sh"
 . "$source_environment_tempfile"
 
 VERSION_HEADER_FILE="$ZLIB_SOURCE_DIR/zlib.h"
-version=$(sed -n -E 's/#define ZLIB_VERSION "([0-9.]+)"/\1/p' "${VERSION_HEADER_FILE}")
+version=$(sed -n -E 's/#define ZLIBNG_VERSION "([0-9.]+)"/\1/p' "${VERSION_HEADER_FILE}")
 echo "${version}" > "${stage}/VERSION.txt"
 
 pushd "$ZLIB_SOURCE_DIR"
@@ -53,7 +53,7 @@ pushd "$ZLIB_SOURCE_DIR"
             pushd "build_debug"
                 # Invoke cmake and use as official build
                 cmake -E env CFLAGS="$archflags" CXXFLAGS="$archflags /std:c++17 /permissive-" LDFLAGS="/DEBUG:FULL" \
-                cmake -G "$AUTOBUILD_WIN_CMAKE_GEN" -A "$AUTOBUILD_WIN_VSPLATFORM" -T host="$AUTOBUILD_WIN_VSHOST" .. -DBUILD_SHARED_LIBS=ON
+                cmake -G "$AUTOBUILD_WIN_CMAKE_GEN" -A "$AUTOBUILD_WIN_VSPLATFORM" -T host="$AUTOBUILD_WIN_VSHOST" .. -DBUILD_SHARED_LIBS=ON -DZLIB_COMPAT:BOOL=ON
 
                 cmake --build . --config Debug --clean-first
 
@@ -66,18 +66,13 @@ pushd "$ZLIB_SOURCE_DIR"
                 cp -a "Debug/zlibd.lib" "$stage/lib/debug/"
                 cp -a "Debug/zlibd.exp" "$stage/lib/debug/"
                 cp -a "Debug/zlibd.pdb" "$stage/lib/debug/"
-                cp -a "Debug/minizipd.dll" "$stage/lib/debug/"
-                cp -a "Debug/minizipd.lib" "$stage/lib/debug/"
-                cp -a "Debug/minizipd.exp" "$stage/lib/debug/"
-                cp -a "Debug/minizipd.pdb" "$stage/lib/debug/"
-                cp -a zconf.h "$stage/include/zlib"
             popd
 
             mkdir -p "build_release"
             pushd "build_release"
                 # Invoke cmake and use as official build
                 cmake -E env CFLAGS="$archflags /Ob3 /GL /Gy /Zi" CXXFLAGS="$archflags /Ob3 /GL /Gy /Zi /std:c++17 /permissive-" LDFLAGS="/LTCG /OPT:REF /OPT:ICF /DEBUG:FULL" \
-                cmake -G "$AUTOBUILD_WIN_CMAKE_GEN" -A "$AUTOBUILD_WIN_VSPLATFORM" -T host="$AUTOBUILD_WIN_VSHOST" .. -DBUILD_SHARED_LIBS=ON
+                cmake -G "$AUTOBUILD_WIN_CMAKE_GEN" -A "$AUTOBUILD_WIN_VSPLATFORM" -T host="$AUTOBUILD_WIN_VSHOST" .. -DBUILD_SHARED_LIBS=ON -DZLIB_COMPAT:BOOL=ON
 
                 cmake --build . --config Release --clean-first
 
@@ -90,10 +85,6 @@ pushd "$ZLIB_SOURCE_DIR"
                 cp -a "Release/zlib.lib" "$stage/lib/release/"
                 cp -a "Release/zlib.exp" "$stage/lib/release/"
                 cp -a "Release/zlib.pdb" "$stage/lib/release/"
-                cp -a "Release/minizip.dll" "$stage/lib/release/"
-                cp -a "Release/minizip.lib" "$stage/lib/release/"
-                cp -a "Release/minizip.exp" "$stage/lib/release/"
-                cp -a "Release/minizip.pdb" "$stage/lib/release/"
                 cp -a zconf.h "$stage/include/zlib"
             popd
             cp -a zlib.h "$stage/include/zlib"
@@ -130,7 +121,7 @@ pushd "$ZLIB_SOURCE_DIR"
                 CXXFLAGS="$DEBUG_CXXFLAGS" \
                 CPPFLAGS="$DEBUG_CPPFLAGS" \
                 LDFLAGS="$DEBUG_LDFLAGS" \
-                cmake .. -GXcode -DBUILD_SHARED_LIBS:BOOL=ON \
+                cmake .. -GXcode -DBUILD_SHARED_LIBS:BOOL=ON -DZLIB_COMPAT:BOOL=ON \
                     -DCMAKE_C_FLAGS="$DEBUG_CFLAGS" \
                     -DCMAKE_CXX_FLAGS="$DEBUG_CXXFLAGS" \
                     -DCMAKE_XCODE_ATTRIBUTE_GCC_OPTIMIZATION_LEVEL="0" \
@@ -156,7 +147,6 @@ pushd "$ZLIB_SOURCE_DIR"
                 fi
 
                 cp -a Debug/libz*.dylib* "${stage}/lib/debug/"
-                cp -a Debug/libminizip*.dylib* "${stage}/lib/debug/"
             popd
 
             mkdir -p "build_release"
@@ -165,7 +155,7 @@ pushd "$ZLIB_SOURCE_DIR"
                 CXXFLAGS="$RELEASE_CXXFLAGS" \
                 CPPFLAGS="$RELEASE_CPPFLAGS" \
                 LDFLAGS="$RELEASE_LDFLAGS" \
-                cmake .. -GXcode -DBUILD_SHARED_LIBS:BOOL=ON \
+                cmake .. -GXcode -DBUILD_SHARED_LIBS:BOOL=ON -DZLIB_COMPAT:BOOL=ON \
                     -DCMAKE_C_FLAGS="$RELEASE_CFLAGS" \
                     -DCMAKE_CXX_FLAGS="$RELEASE_CXXFLAGS" \
                     -DCMAKE_XCODE_ATTRIBUTE_GCC_OPTIMIZATION_LEVEL="fast" \
@@ -191,23 +181,18 @@ pushd "$ZLIB_SOURCE_DIR"
                 fi
 
                 cp -a Release/libz*.dylib* "${stage}/lib/release/"
-                cp -a Release/libminizip*.dylib* "${stage}/lib/release/"
 
                 cp -a zconf.h "$stage/include/zlib"
             popd
 
             pushd "${stage}/lib/debug"
                 fix_dylib_id "libz.dylib"
-                fix_dylib_id "libminizip.dylib"
                 strip -x -S libz.dylib
-                strip -x -S libminizip.dylib
             popd
 
             pushd "${stage}/lib/release"
                 fix_dylib_id "libz.dylib"
-                fix_dylib_id "libminizip.dylib"
                 strip -x -S libz.dylib
-                strip -x -S libminizip.dylib
             popd
 
             cp -a zlib.h "$stage/include/zlib"
@@ -271,18 +256,6 @@ pushd "$ZLIB_SOURCE_DIR"
                 make test
             fi
 
-            # minizip
-            pushd contrib/minizip
-                CFLAGS="$DEBUG_CFLAGS" CXXFLAGS="$DEBUG_CXXFLAGS" CPPFLAGS="$DEBUG_CPPFLAGS" \
-                    make -f Makefile.Linden all
-                cp -a libminizip.a "$stage"/lib/debug/
-                # conditionally run unit tests
-                if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
-                    make -f Makefile.Linden test
-                fi
-                make -f Makefile.Linden clean
-            popd
-
             # clean the build artifacts
             make distclean
 
@@ -300,18 +273,6 @@ pushd "$ZLIB_SOURCE_DIR"
                 make test
             fi
 
-            # minizip
-            pushd contrib/minizip
-                CFLAGS="$RELEASE_CFLAGS" CXXFLAGS="$RELEASE_CXXFLAGS" CPPFLAGS="$RELEASE_CPPFLAGS" \
-                    make -f Makefile.Linden all
-                cp -a libminizip.a "$stage"/lib/release/
-                # conditionally run unit tests
-                if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
-                    make -f Makefile.Linden test
-                fi
-                make -f Makefile.Linden clean
-            popd
-
             # clean the build artifacts
             make distclean
         ;;
@@ -325,19 +286,10 @@ pushd "$ZLIB_SOURCE_DIR"
     # reasonably expect '/pattern/,END' to work, but no: END can only be used
     # to fire an action past EOF. Have to simulate by using another regexp we
     # hope will NOT match.)
-    awk '/^Copyright notice:$/,/@%rest%@/' README > "$stage/LICENSES/zlib.txt"
+    cp LICENSE.md "$stage/LICENSES/zlib-ng.txt"
     # In case the section header changes, ensure that zlib.txt is non-empty.
     # (With -e in effect, a raw test command has the force of an assert.)
     # Exiting here means we failed to match the copyright section header.
     # Check the README and adjust the awk regexp accordingly.
     [ -s "$stage/LICENSES/zlib.txt" ]
-    pushd contrib/minizip
-        mkdir -p "$stage"/include/minizip/
-        cp -a ioapi.h zip.h unzip.h "$stage"/include/minizip/
-        awk '/^License$/,/@%rest%@/' MiniZip64_info.txt > "$stage/LICENSES/minizip.txt"
-        [ -s "$stage/LICENSES/minizip.txt" ]
-    popd
 popd
-
-mkdir -p "$stage"/docs/zlib/
-cp -a README.Linden "$stage"/docs/zlib/
