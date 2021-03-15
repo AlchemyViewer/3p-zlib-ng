@@ -291,5 +291,5 @@ pushd "$ZLIB_SOURCE_DIR"
     # (With -e in effect, a raw test command has the force of an assert.)
     # Exiting here means we failed to match the copyright section header.
     # Check the README and adjust the awk regexp accordingly.
-    [ -s "$stage/LICENSES/zlib.txt" ]
+    [ -s "$stage/LICENSES/zlib-ng.txt" ]
 popd
