@@ -42,7 +42,7 @@
           <key>manifest</key>
           <array>
             <string>include/zlib/*.h</string>
-            <string>LICENSES/zlib.txt</string>
+            <string>LICENSES/zlib-ng.txt</string>
           </array>
           <key>name</key>
           <string>common</string>
