@@ -246,7 +246,7 @@ pushd "$ZLIB_SOURCE_DIR"
             export PKG_CONFIG_PATH="$stage/packages/lib/debug/pkgconfig:${OLD_PKG_CONFIG_PATH}"
 
             CFLAGS="$DEBUG_CFLAGS" CXXFLAGS="$DEBUG_CXXFLAGS" CPPFLAGS="$DEBUG_CPPFLAGS" \
-                ./configure --static --prefix="\${AUTOBUILD_PACKAGES_DIR}" \
+                ./configure --static --zlib-compat --prefix="\${AUTOBUILD_PACKAGES_DIR}" \
                     --includedir="\${prefix}/include/zlib" --libdir="\${prefix}/lib/debug"
             make
             make install DESTDIR="$stage"
@@ -263,7 +263,7 @@ pushd "$ZLIB_SOURCE_DIR"
             export PKG_CONFIG_PATH="$stage/packages/lib/release/pkgconfig:${OLD_PKG_CONFIG_PATH}"
 
             CFLAGS="$RELEASE_CFLAGS" CXXFLAGS="$RELEASE_CXXFLAGS" CPPFLAGS="$RELEASE_CPPFLAGS" \
-                ./configure --static --prefix="\${AUTOBUILD_PACKAGES_DIR}" \
+                ./configure --static --zlib-compat --prefix="\${AUTOBUILD_PACKAGES_DIR}" \
                     --includedir="\${prefix}/include/zlib" --libdir="\${prefix}/lib/release"
             make
             make install DESTDIR="$stage"
