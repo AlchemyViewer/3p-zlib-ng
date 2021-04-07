@@ -965,6 +965,12 @@ if(NOT DEFINED BUILD_SHARED_LIBS OR BUILD_SHARED_LIBS)
     endif()
 endif()
 
+if("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
+  target_compile_options(zlib PRIVATE /std:c++17 /permissive- /Z7 $<$<CONFIG:Release>:/Ob3> $<$<CONFIG:Release>:/Gy> $<$<EQUAL:${CMAKE_SIZEOF_VOID_P},4>:/arch:SSE2>)
+  target_link_options(zlib PRIVATE /DEBUG:FULL $<$<CONFIG:Release>:/OPT:REF> $<$<CONFIG:Release>:/OPT:ICF>)
+endif()
+
+
 if(HAVE_STDARG_H)
   SET(ZCONF_STDARG_LINE "#if 1    /* was set to #if 1 by configure/cmake/etc */")
 else()
