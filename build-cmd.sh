@@ -109,6 +109,7 @@ pushd "$ZLIB_SOURCE_DIR"
                     -DCMAKE_OSX_ARCHITECTURES:STRING=x86_64 \
                     -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} \
                     -DCMAKE_OSX_SYSROOT=${SDKROOT} \
+                    -DCMAKE_OSX_ARCHITECTURES="x86_64" \
                     -DCMAKE_MACOSX_RPATH=YES -DCMAKE_INSTALL_PREFIX=$stage
 
                 cmake --build . --config Debug
@@ -143,6 +144,7 @@ pushd "$ZLIB_SOURCE_DIR"
                     -DCMAKE_OSX_ARCHITECTURES:STRING=x86_64 \
                     -DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET} \
                     -DCMAKE_OSX_SYSROOT=${SDKROOT} \
+                    -DCMAKE_OSX_ARCHITECTURES="x86_64" \
                     -DCMAKE_MACOSX_RPATH=YES -DCMAKE_INSTALL_PREFIX=$stage
 
                 cmake --build . --config Release
