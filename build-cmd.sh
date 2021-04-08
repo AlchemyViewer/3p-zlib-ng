@@ -58,6 +58,7 @@ pushd "$ZLIB_SOURCE_DIR"
 
                 cp -a "Debug/zlibd.lib" "$stage/lib/debug/"
                 cp -a "Release/zlib.lib" "$stage/lib/release/"
+                cp -a zconf.h "$stage/include/zlib"
             popd
             cp -a zlib.h "$stage/include/zlib"
         ;;
