@@ -56,8 +56,8 @@ pushd "$ZLIB_SOURCE_DIR"
                     ctest -C Release
                 fi
 
-                cp -a "Debug/zlibd.lib" "$stage/lib/debug/"
-                cp -a "Release/zlib.lib" "$stage/lib/release/"
+                cp -a "Debug/zlibstaticd.lib" "$stage/lib/debug/zlibd.lib"
+                cp -a "Release/zlibstatic.lib" "$stage/lib/release/zlib.lib"
                 cp -a zconf.h "$stage/include/zlib"
             popd
             cp -a zlib.h "$stage/include/zlib"
