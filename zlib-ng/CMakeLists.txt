@@ -9,7 +9,7 @@ message(STATUS "Using CMake version ${CMAKE_VERSION}")
 set(CMAKE_MACOSX_RPATH 1)
 
 # If not specified on the command line, enable C99 as the default
-# Configuration items that affect the global compiler envirionment standards
+# Configuration items that affect the global compiler environment standards
 # should be issued before the "project" command.
 if(NOT CMAKE_C_STANDARD)
     set(CMAKE_C_STANDARD 99)          # The C standard whose features are requested to build this target
@@ -78,7 +78,6 @@ add_option(WITH_GZFILEOP "Compile with support for gzFile related functions" ON)
 add_option(ZLIB_COMPAT "Compile with zlib compatible API" OFF)
 add_option(ZLIB_ENABLE_TESTS "Build test binaries" ON)
 add_option(ZLIB_DUAL_LINK "Dual link tests against system zlib" OFF)
-add_option(WITH_SANITIZER "Build with sanitizer (Memory, Address, Undefined)" OFF)
 add_option(WITH_FUZZERS "Build test/fuzz" OFF)
 add_option(WITH_OPTIM "Build with optimisation" ON)
 add_option(WITH_NEW_STRATEGIES "Use new strategies" ON)
@@ -89,6 +88,10 @@ add_option(WITH_CODE_COVERAGE "Enable code coverage reporting" OFF)
 add_option(WITH_INFLATE_STRICT "Build with strict inflate distance checking" OFF)
 add_option(WITH_INFLATE_ALLOW_INVALID_DIST "Build with zero fill for inflate invalid distances" OFF)
 add_option(WITH_UNALIGNED "Support unaligned reads on platforms that support it" ON)
+
+# Add multi-choice option
+set(WITH_SANITIZER AUTO CACHE STRING "Enable sanitizer support")
+set_property(CACHE WITH_SANITIZER PROPERTY STRINGS "Memory" "Address" "Undefined" "Thread")
 
 if(BASEARCH_ARM_FOUND)
     add_option(WITH_ACLE "Build with ACLE" ON)
@@ -134,8 +137,8 @@ if(WITH_GZFILEOP)
     add_definitions(-DWITH_GZFILEOP)
 endif()
 
-if("${CMAKE_C_COMPILER}" MATCHES "icc" OR "${CMAKE_C_COMPILER}" MATCHES "icpc" OR "${CMAKE_C_COMPILER}" MATCHES "icl")
-    if(CMAKE_HOST_UNIX OR APPLE)
+if(CMAKE_C_COMPILER_ID MATCHES "Intel")
+    if(CMAKE_HOST_UNIX)
         set(WARNFLAGS "-w3")
         set(WARNFLAGS_MAINTAINER "-w3 -Wcheck -Wremarks")
         set(WARNFLAGS_DISABLE "")
@@ -331,7 +334,6 @@ endif()
 #
 # Check for standard/system includes
 #
-check_include_file(stdarg.h    HAVE_STDARG_H)
 check_include_file(sys/sdt.h   HAVE_SYS_SDT_H)
 if(HAVE_SYS_SDT_H)
     add_definitions(-DHAVE_SYS_SDT_H)
@@ -371,6 +373,8 @@ if(WITH_SANITIZER STREQUAL "Address")
     add_address_sanitizer()
 elseif(WITH_SANITIZER STREQUAL "Memory")
     add_memory_sanitizer()
+elseif(WITH_SANITIZER STREQUAL "Thread")
+    add_thread_sanitizer()
 elseif(WITH_SANITIZER STREQUAL "Undefined")
     add_undefined_sanitizer()
 endif()
@@ -790,7 +794,7 @@ if(WITH_OPTIM)
                 add_definitions(-DX86_SSE42_CRC_INTRIN)
             endif()
         endif()
-        if(HAVE_SSE42CMPSTR_INTRIN)
+        if(WITH_SSE4 AND HAVE_SSE42CMPSTR_INTRIN)
             add_definitions(-DX86_SSE42_CMP_STR)
             set(SSE42_SRCS ${ARCHDIR}/compare258_sse.c)
             add_feature_info(SSE42_COMPARE258 1 "Support SSE4.2 optimized compare258, using \"${SSE4FLAG}\"")
@@ -836,7 +840,6 @@ macro(generate_cmakein input output)
     file(STRINGS ${input} _lines)
     foreach(_line IN LISTS _lines)
         string(REGEX REPLACE "#ifdef HAVE_UNISTD_H.*" "@ZCONF_UNISTD_LINE@" _line "${_line}")
-        string(REGEX REPLACE "#ifdef HAVE_STDARG_H.*" "@ZCONF_STDARG_LINE@" _line "${_line}")
         string(REGEX REPLACE "#ifdef NEED_PTRDIFF_T.*" "@ZCONF_PTRDIFF_LINE@" _line "${_line}")
         if(NEED_PTRDIFF_T)
             string(REGEX REPLACE "typedef PTRDIFF_TYPE" "typedef @PTRDIFF_TYPE@" _line "${_line}")
@@ -945,13 +948,13 @@ set(ZLIB_GZFILE_SRCS
     gzwrite.c
 )
 
-if(NOT MINGW AND NOT MSYS)
+if(NOT MINGW AND NOT MSYS AND NOT CYGWIN)
     set(ZLIB_DLL_SRCS
         win32/zlib${SUFFIX}1.rc # If present will override custom build rule below.
     )
 endif()
 
-if(MINGW OR MSYS)
+if(MINGW OR MSYS OR CYGWIN)
     # This gets us DLL resource information when compiling on MinGW.
     if(NOT CMAKE_RC_COMPILER)
         set(CMAKE_RC_COMPILER windres.exe)
@@ -994,7 +997,24 @@ foreach(ZLIB_INSTALL_LIBRARY ${ZLIB_INSTALL_LIBRARIES})
 endforeach()
 
 if(WIN32)
-    set_target_properties(${ZLIB_INSTALL_LIBRARIES} PROPERTIES OUTPUT_NAME zlib${SUFFIX})
+    # Shared library
+    if(NOT DEFINED BUILD_SHARED_LIBS OR BUILD_SHARED_LIBS)
+        set_target_properties(zlib PROPERTIES OUTPUT_NAME zlib${SUFFIX})
+    endif()
+    # Static library
+    if(NOT DEFINED BUILD_SHARED_LIBS)
+        if(MSVC)
+            set_target_properties(zlibstatic PROPERTIES OUTPUT_NAME zlibstatic${SUFFIX})
+        else()
+            set_target_properties(zlibstatic PROPERTIES OUTPUT_NAME z${SUFFIX})
+        endif()
+    elseif(NOT BUILD_SHARED_LIBS)
+        if(MSVC)
+            set_target_properties(zlib PROPERTIES OUTPUT_NAME zlibstatic${SUFFIX})
+        else()
+            set_target_properties(zlib PROPERTIES OUTPUT_NAME z${SUFFIX})
+        endif()
+    endif()
 else()
     # On unix-like platforms the library is almost always called libz
     set_target_properties(${ZLIB_INSTALL_LIBRARIES} PROPERTIES OUTPUT_NAME z${SUFFIX})
@@ -1033,7 +1053,8 @@ if(NOT DEFINED BUILD_SHARED_LIBS OR BUILD_SHARED_LIBS)
             # Match configure/make's behavior (i.e. don't use @rpath on mac).
             set_target_properties(zlib PROPERTIES INSTALL_NAME_DIR "${LIB_INSTALL_DIR}")
         endif()
-    elseif(MSYS)
+    endif()
+    if(MSYS OR CYGWIN)
         # Suppress version number from shared library name
         set(CMAKE_SHARED_LIBRARY_NAME_WITH_VERSION 0)
     elseif(WIN32)
@@ -1053,15 +1074,10 @@ if("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
 endif()
 # </ALCHEMY>
 
-if(HAVE_STDARG_H)
-  SET(ZCONF_STDARG_LINE "#if 1    /* was set to #if 1 by configure/cmake/etc */")
-else()
-  SET(ZCONF_STDARG_LINE "#ifdef HAVE_STDARG_H    /* may be set to #if 1 by configure/cmake/etc */")
-endif()
 if(HAVE_UNISTD_H)
   SET(ZCONF_UNISTD_LINE "#if 1    /* was set to #if 1 by configure/cmake/etc */")
 else()
-  SET(ZCONF_UNISTD_LINE "#ifdef HAVE_UNISTD_H    /* may be set to #if 1 by configure/cmake/etc */")
+  SET(ZCONF_UNISTD_LINE "#if 0    /* was set to #if 0 by configure/cmake/etc */")
 endif()
 if(NEED_PTRDIFF_T)
     SET(ZCONF_PTRDIFF_LINE "#if 1    /* was set to #if 1 by configure/cmake/etc */")
