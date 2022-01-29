@@ -71,7 +71,7 @@ pushd "$ZLIB_SOURCE_DIR"
 
             # Setup build flags
             ARCH_FLAGS_X86="-arch x86_64 -mmacosx-version-min=10.15 -isysroot ${SDKROOT} -msse4.2"
-            ARCH_FLAGS_ARM64="-arch arm64 -mmacosx-version-min=12.0 -isysroot ${SDKROOT}"
+            ARCH_FLAGS_ARM64="-arch arm64 -mmacosx-version-min=11.0 -isysroot ${SDKROOT}"
             DEBUG_COMMON_FLAGS="-O0 -g -fPIC -DPIC"
             RELEASE_COMMON_FLAGS="-O3 -g -fPIC -DPIC -fstack-protector-strong"
             DEBUG_CFLAGS="$DEBUG_COMMON_FLAGS"
