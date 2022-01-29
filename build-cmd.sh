@@ -72,7 +72,6 @@ pushd "$ZLIB_SOURCE_DIR"
             # Setup build flags
             ARCH_FLAGS_X86="-arch x86_64 -mmacosx-version-min=10.15 -isysroot ${SDKROOT} -msse4.2"
             ARCH_FLAGS_ARM64="-arch arm64 -mmacosx-version-min=12.0 -isysroot ${SDKROOT}"
-            SDK_FLAGS=""
             DEBUG_COMMON_FLAGS="-O0 -g -fPIC -DPIC"
             RELEASE_COMMON_FLAGS="-O3 -g -fPIC -DPIC -fstack-protector-strong"
             DEBUG_CFLAGS="$DEBUG_COMMON_FLAGS"
@@ -84,10 +83,7 @@ pushd "$ZLIB_SOURCE_DIR"
             DEBUG_LDFLAGS="-Wl,-headerpad_max_install_names"
             RELEASE_LDFLAGS="-Wl,-headerpad_max_install_names"
 
-            mkdir -p "$stage/include/zlib"
-            mkdir -p "$stage/lib/debug"
-            mkdir -p "$stage/lib/release"
-
+            # x86 deploy target
             export MACOSX_DEPLOYMENT_TARGET=10.15
 
             mkdir -p "build_debug_x86"
@@ -95,7 +91,7 @@ pushd "$ZLIB_SOURCE_DIR"
                 CFLAGS="$ARCH_FLAGS_X86 $DEBUG_CFLAGS" \
                 CXXFLAGS="$ARCH_FLAGS_X86 $DEBUG_CXXFLAGS" \
                 CPPFLAGS="$ARCH_FLAGS_X86 $DEBUG_CPPFLAGS" \
-                LDFLAGS="$ARCH_FLAGS_X86 ${DEBUG_LDFLAGS}" \
+                LDFLAGS="$ARCH_FLAGS_X86 $DEBUG_LDFLAGS" \
                 cmake .. -GXcode -DBUILD_SHARED_LIBS:BOOL=OFF -DZLIB_COMPAT:BOOL=ON -DWITH_OPTIM:BOOL=OFF \
                     -DCMAKE_C_FLAGS="$ARCH_FLAGS_X86 $DEBUG_CFLAGS" \
                     -DCMAKE_CXX_FLAGS="$ARCH_FLAGS_X86 $DEBUG_CXXFLAGS" \
@@ -159,14 +155,15 @@ pushd "$ZLIB_SOURCE_DIR"
                 fi
             popd
 
-            export MACOSX_DEPLOYMENT_TARGET=12.0
+            # ARM64 Deploy Target
+            export MACOSX_DEPLOYMENT_TARGET=11.0
 
             mkdir -p "build_debug_arm64"
             pushd "build_debug_arm64"
                 CFLAGS="$ARCH_FLAGS_ARM64 $DEBUG_CFLAGS" \
                 CXXFLAGS="$ARCH_FLAGS_ARM64 $DEBUG_CXXFLAGS" \
                 CPPFLAGS="$ARCH_FLAGS_ARM64 $DEBUG_CPPFLAGS" \
-                LDFLAGS="$ARCH_FLAGS_ARM64 ${DEBUG_LDFLAGS}" \
+                LDFLAGS="$ARCH_FLAGS_ARM64 $DEBUG_LDFLAGS" \
                 cmake .. -GXcode -DBUILD_SHARED_LIBS:BOOL=OFF -DZLIB_COMPAT:BOOL=ON -DWITH_OPTIM:BOOL=OFF \
                     -DCMAKE_C_FLAGS="$ARCH_FLAGS_ARM64 $DEBUG_CFLAGS" \
                     -DCMAKE_CXX_FLAGS="$ARCH_FLAGS_ARM64 $DEBUG_CXXFLAGS" \
@@ -226,10 +223,16 @@ pushd "$ZLIB_SOURCE_DIR"
                 fi
             popd
 
+            # create stading dir structures
+            mkdir -p "$stage/include/zlib"
+            mkdir -p "$stage/lib/debug"
+            mkdir -p "$stage/lib/release"
+
             # create fat libraries
             lipo -create ${stage}/debug_x86/lib/libz.a ${stage}/debug_arm64/lib/libz.a -output ${stage}/lib/debug/libz.a
             lipo -create ${stage}/release_x86/lib/libz.a ${stage}/release_arm64/lib/libz.a -output ${stage}/lib/release/libz.a
 
+            # headers are the same between x86_64 and arm64
             mv $stage/release_x86/include/* $stage/include/zlib
         ;;            
 
