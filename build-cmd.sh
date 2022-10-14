@@ -45,7 +45,7 @@ pushd "$ZLIB_SOURCE_DIR"
             mkdir -p "build"
             pushd "build"
                 # Invoke cmake and use as official build
-                cmake -G "$AUTOBUILD_WIN_CMAKE_GEN" -A "$AUTOBUILD_WIN_VSPLATFORM" -T host="$AUTOBUILD_WIN_VSHOST" .. -DBUILD_SHARED_LIBS=OFF -DZLIB_COMPAT:BOOL=ON
+                cmake -G "$AUTOBUILD_WIN_CMAKE_GEN" -A "$AUTOBUILD_WIN_VSPLATFORM" .. -DCMAKE_C_FLAGS="$LL_BUILD_WINDOWS_RELEASE_SWITCHES" -DBUILD_SHARED_LIBS=OFF -DZLIB_COMPAT:BOOL=ON
 
                 cmake --build . --config Debug
                 cmake --build . --config Release
