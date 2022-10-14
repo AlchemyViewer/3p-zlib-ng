@@ -31,16 +31,17 @@ VERSION_HEADER_FILE="$ZLIB_SOURCE_DIR/zlib.h"
 version=$(sed -n -E 's/#define ZLIBNG_VERSION "([0-9.]+)"/\1/p' "${VERSION_HEADER_FILE}")
 echo "${version}" > "${stage}/VERSION.txt"
 
+# create stading dir structures
+mkdir -p "$stage/include/zlib"
+mkdir -p "$stage/lib/debug"
+mkdir -p "$stage/lib/release"
+
 pushd "$ZLIB_SOURCE_DIR"
     case "$AUTOBUILD_PLATFORM" in
 
         # ------------------------ windows, windows64 ------------------------
         windows*)
             load_vsvars
-
-            mkdir -p "$stage/include/zlib"
-            mkdir -p "$stage/lib/debug"
-            mkdir -p "$stage/lib/release"
 
             mkdir -p "build"
             pushd "build"
@@ -223,11 +224,6 @@ pushd "$ZLIB_SOURCE_DIR"
                 fi
             popd
 
-            # create stading dir structures
-            mkdir -p "$stage/include/zlib"
-            mkdir -p "$stage/lib/debug"
-            mkdir -p "$stage/lib/release"
-
             # create fat libraries
             lipo -create ${stage}/debug_x86/lib/libz.a ${stage}/debug_arm64/lib/libz.a -output ${stage}/lib/debug/libz.a
             lipo -create ${stage}/release_x86/lib/libz.a ${stage}/release_arm64/lib/libz.a -output ${stage}/lib/release/libz.a
@@ -238,21 +234,6 @@ pushd "$ZLIB_SOURCE_DIR"
 
         # -------------------------- linux, linux64 --------------------------
         linux*)
-            # Linux build environment at Linden comes pre-polluted with stuff that can
-            # seriously damage 3rd-party builds.  Environmental garbage you can expect
-            # includes:
-            #
-            #    DISTCC_POTENTIAL_HOSTS     arch           root        CXXFLAGS
-            #    DISTCC_LOCATION            top            branch      CC
-            #    DISTCC_HOSTS               build_name     suffix      CXX
-            #    LSDISTCC_ARGS              repo           prefix      CFLAGS
-            #    cxx_version                AUTOBUILD      SIGN        CPPFLAGS
-            #
-            # So, clear out bits that shouldn't affect our configure-directed build
-            # but which do nonetheless.
-            #
-            unset DISTCC_HOSTS CC CXX CFLAGS CPPFLAGS CXXFLAGS
-
             # Default target per autobuild build --address-size
             opts="${TARGET_OPTS:--m$AUTOBUILD_ADDRSIZE}"
             DEBUG_COMMON_FLAGS="$opts -Og -g -fPIC -DPIC"
@@ -264,55 +245,48 @@ pushd "$ZLIB_SOURCE_DIR"
             DEBUG_CPPFLAGS="-DPIC"
             RELEASE_CPPFLAGS="-DPIC"
 
-            # Handle any deliberate platform targeting
-            if [ -z "${TARGET_CPPFLAGS:-}" ]; then
-                # Remove sysroot contamination from build environment
-                unset CPPFLAGS
-            else
-                # Incorporate special pre-processing flags
-                export CPPFLAGS="$TARGET_CPPFLAGS"
-            fi
+            mkdir -p "build_debug"
+            pushd "build_debug"
+                CFLAGS="$DEBUG_CFLAGS" \
+                CPPFLAGS="$DEBUG_CPPFLAGS" \
+                cmake .. -GNinja -DBUILD_SHARED_LIBS:BOOL=OFF -DZLIB_COMPAT:BOOL=ON \
+                    -DCMAKE_BUILD_TYPE="Debug" \
+                    -DCMAKE_C_FLAGS="$DEBUG_CFLAGS" \
+                    -DCMAKE_INSTALL_PREFIX="$stage/debug"
 
-            # Fix up path for pkgconfig
-            if [ -d "$stage/packages/lib/release/pkgconfig" ]; then
-                fix_pkgconfig_prefix "$stage/packages"
-            fi
+                cmake --build . --config Debug
+                cmake --install . --config Debug
 
-            OLD_PKG_CONFIG_PATH="${PKG_CONFIG_PATH:-}"
+                # conditionally run unit tests
+                if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
+                    ctest -C Debug
+                fi
+            popd
 
-            # Debug first
-            export PKG_CONFIG_PATH="$stage/packages/lib/debug/pkgconfig:${OLD_PKG_CONFIG_PATH}"
+            mkdir -p "build_release"
+            pushd "build_release"
+                CFLAGS="$RELEASE_CFLAGS" \
+                CPPFLAGS="$RELEASE_CPPFLAGS" \
+                cmake .. -GNinja -DBUILD_SHARED_LIBS:BOOL=OFF -DZLIB_COMPAT:BOOL=ON \
+                    -DCMAKE_BUILD_TYPE="Release" \
+                    -DCMAKE_C_FLAGS="$RELEASE_CFLAGS" \
+                    -DCMAKE_INSTALL_PREFIX="$stage/release"
 
-            CFLAGS="$DEBUG_CFLAGS" CXXFLAGS="$DEBUG_CXXFLAGS" CPPFLAGS="$DEBUG_CPPFLAGS" \
-                ./configure --static --zlib-compat --prefix="\${AUTOBUILD_PACKAGES_DIR}" \
-                    --includedir="\${prefix}/include/zlib" --libdir="\${prefix}/lib/debug"
-            make
-            make install DESTDIR="$stage"
+                cmake --build . --config Release
+                cmake --install . --config Release
 
-            # conditionally run unit tests
-            if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
-                make test
-            fi
+                # conditionally run unit tests
+                if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
+                    ctest -C Release
+                fi
+            popd
 
-            # clean the build artifacts
-            make distclean
+            # Copy libraries
+            cp -a ${stage}/debug/lib/*.a ${stage}/lib/debug/
+            cp -a ${stage}/release/lib/*.a ${stage}/lib/release/
 
-            # Release last
-            export PKG_CONFIG_PATH="$stage/packages/lib/release/pkgconfig:${OLD_PKG_CONFIG_PATH}"
-
-            CFLAGS="$RELEASE_CFLAGS" CXXFLAGS="$RELEASE_CXXFLAGS" CPPFLAGS="$RELEASE_CPPFLAGS" \
-                ./configure --static --zlib-compat --prefix="\${AUTOBUILD_PACKAGES_DIR}" \
-                    --includedir="\${prefix}/include/zlib" --libdir="\${prefix}/lib/release"
-            make
-            make install DESTDIR="$stage"
-
-            # conditionally run unit tests
-            if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
-                make test
-            fi
-
-            # clean the build artifacts
-            make distclean
+            # copy headers
+            mv $stage/release/include/* $stage/include/zlib
         ;;
     esac
     mkdir -p "$stage/LICENSES"
