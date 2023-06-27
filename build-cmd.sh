@@ -27,7 +27,7 @@ source_environment_tempfile="$stage/source_environment.sh"
 "$autobuild" source_environment > "$source_environment_tempfile"
 . "$source_environment_tempfile"
 
-VERSION_HEADER_FILE="$ZLIB_SOURCE_DIR/zlib.h"
+VERSION_HEADER_FILE="$ZLIB_SOURCE_DIR/zlib.h.in"
 version=$(sed -n -E 's/#define ZLIBNG_VERSION "([0-9.]+)"/\1/p' "${VERSION_HEADER_FILE}")
 echo "${version}" > "${stage}/VERSION.txt"
 
