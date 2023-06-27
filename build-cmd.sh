@@ -60,8 +60,8 @@ pushd "$ZLIB_SOURCE_DIR"
                 cp -a "Debug/zlibstaticd.lib" "$stage/lib/debug/zlibd.lib"
                 cp -a "Release/zlibstatic.lib" "$stage/lib/release/zlib.lib"
                 cp -a zconf.h "$stage/include/zlib"
+                cp -a zlib.h "$stage/include/zlib"
             popd
-            cp -a zlib.h "$stage/include/zlib"
         ;;
 
         # ------------------------- darwin, darwin64 -------------------------
