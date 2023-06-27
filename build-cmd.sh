@@ -61,6 +61,7 @@ pushd "$ZLIB_SOURCE_DIR"
                 cp -a "Release/zlibstatic.lib" "$stage/lib/release/zlib.lib"
                 cp -a zconf.h "$stage/include/zlib"
                 cp -a zlib.h "$stage/include/zlib"
+                cp -a "zlib_name_mangling.h" "$stage/include/zlib"
             popd
         ;;
 
