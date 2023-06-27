@@ -12,19 +12,12 @@
 #include "deflate.h"
 
 #include <stdio.h>
-
-#include <string.h>
-#include <stdlib.h>
-#include <inttypes.h>
-#include <stdint.h>
 #include <stdarg.h>
+#include <inttypes.h>
+
+#include "test_shared_ng.h"
 
 #define TESTFILE "foo.gz"
-
-static const char hello[] = "hello, hello!";
-/* "hello world" would be more standard, but the repeated "hello"
- * stresses the compression code better, sorry...
- */
 
 static const char dictionary[] = "hello";
 static unsigned long dictId = 0; /* Adler32 value of the dictionary */
@@ -33,13 +26,13 @@ static unsigned long dictId = 0; /* Adler32 value of the dictionary */
 #define MAX_DICTIONARY_SIZE 32768
 
 
-void test_compress      (unsigned char *compr, z_size_t comprLen,unsigned char *uncompr, z_size_t uncomprLen);
+void test_compress      (unsigned char *compr, z_uintmax_t comprLen, unsigned char *uncompr, z_uintmax_t uncomprLen);
 void test_gzio          (const char *fname, unsigned char *uncompr, z_size_t uncomprLen);
 void test_deflate       (unsigned char *compr, size_t comprLen);
 void test_inflate       (unsigned char *compr, size_t comprLen, unsigned char *uncompr, size_t uncomprLen);
 void test_large_deflate (unsigned char *compr, size_t comprLen, unsigned char *uncompr, size_t uncomprLen, int zng_params);
 void test_large_inflate (unsigned char *compr, size_t comprLen, unsigned char *uncompr, size_t uncomprLen);
-void test_flush         (unsigned char *compr, z_size_t *comprLen);
+void test_flush         (unsigned char *compr, z_uintmax_t *comprLen);
 void test_sync          (unsigned char *compr, size_t comprLen, unsigned char *uncompr, size_t uncomprLen);
 void test_dict_deflate  (unsigned char *compr, size_t comprLen);
 void test_dict_inflate  (unsigned char *compr, size_t comprLen, unsigned char *uncompr, size_t uncomprLen);
@@ -70,11 +63,11 @@ void error(const char *format, ...) {
 /* ===========================================================================
  * Test compress() and uncompress()
  */
-void test_compress(unsigned char *compr, z_size_t comprLen, unsigned char *uncompr, z_size_t uncomprLen) {
+void test_compress(unsigned char *compr, z_uintmax_t comprLen, unsigned char *uncompr, z_uintmax_t uncomprLen) {
     int err;
-    size_t len = strlen(hello)+1;
+    unsigned int len = (unsigned int)strlen(hello)+1;
 
-    err = PREFIX(compress)(compr, &comprLen, (const unsigned char*)hello, (z_size_t)len);
+    err = PREFIX(compress)(compr, &comprLen, (const unsigned char*)hello, len);
     CHECK_ERR(err, "compress");
 
     strcpy((char*)uncompr, "garbage");
@@ -409,7 +402,7 @@ void test_large_inflate(unsigned char *compr, size_t comprLen, unsigned char *un
 /* ===========================================================================
  * Test deflate() with full flush
  */
-void test_flush(unsigned char *compr, z_size_t *comprLen) {
+void test_flush(unsigned char *compr, z_uintmax_t *comprLen) {
     PREFIX3(stream) c_stream; /* compression stream */
     int err;
     unsigned int len = (unsigned int)strlen(hello)+1;
@@ -441,8 +434,10 @@ void test_flush(unsigned char *compr, z_size_t *comprLen) {
     *comprLen = (z_size_t)c_stream.total_out;
 }
 
+#ifdef ZLIBNG_ENABLE_TESTS
 /* ===========================================================================
  * Test inflateSync()
+ * We expect a certain compressed block layout, so skip this with the original zlib.
  */
 void test_sync(unsigned char *compr, size_t comprLen, unsigned char *uncompr, size_t uncomprLen) {
     int err;
@@ -478,6 +473,7 @@ void test_sync(unsigned char *compr, size_t comprLen, unsigned char *uncompr, si
 
     printf("after inflateSync(): hel%s\n", (char *)uncompr);
 }
+#endif
 
 /* ===========================================================================
  * Test deflate() with preset dictionary
@@ -551,7 +547,7 @@ void test_dict_inflate(unsigned char *compr, size_t comprLen, unsigned char *unc
     err = PREFIX(inflateGetDictionary)(&d_stream, NULL, &check_dictionary_len);
     CHECK_ERR(err, "inflateGetDictionary");
 #ifndef S390_DFLTCC_INFLATE
-    if (check_dictionary_len != sizeof(dictionary))
+    if (check_dictionary_len < sizeof(dictionary))
         error("bad dictionary length\n");
 #endif
     
@@ -789,7 +785,7 @@ void test_deflate_prime(unsigned char *compr, size_t comprLen, unsigned char *un
     err = PREFIX(deflatePrime)(&c_stream, 5, 0x0);
     CHECK_ERR(err, "deflatePrime");
     /* Gzip modified time */
-    err = PREFIX(deflatePrime)(&c_stream, 32, 0x0);
+    err = deflate_prime_32(&c_stream, 0);
     CHECK_ERR(err, "deflatePrime");
     /* Gzip extra flags */
     err = PREFIX(deflatePrime)(&c_stream, 8, 0x0);
@@ -809,10 +805,10 @@ void test_deflate_prime(unsigned char *compr, size_t comprLen, unsigned char *un
 
     /* Gzip uncompressed data crc32 */
     crc = PREFIX(crc32)(0, (const uint8_t *)hello, (uint32_t)len);
-    err = PREFIX(deflatePrime)(&c_stream, 32, crc);
+    err = deflate_prime_32(&c_stream, crc);
     CHECK_ERR(err, "deflatePrime");
     /* Gzip uncompressed data length */
-    err = PREFIX(deflatePrime)(&c_stream, 32, (uint32_t)len);
+    err = deflate_prime_32(&c_stream, (uint32_t)len);
     CHECK_ERR(err, "deflatePrime");
 
     err = PREFIX(deflateEnd)(&c_stream);
@@ -957,8 +953,8 @@ void test_deflate_tune(unsigned char *compr, size_t comprLen) {
  */
 int main(int argc, char *argv[]) {
     unsigned char *compr, *uncompr;
-    z_size_t comprLen = 10000*sizeof(int); /* don't overflow on MSDOS */
-    z_size_t uncomprLen = comprLen;
+    z_uintmax_t comprLen = 10000*sizeof(int); /* don't overflow on MSDOS */
+    z_uintmax_t uncomprLen = comprLen;
     static const char* myVersion = PREFIX2(VERSION);
 
     if (zVersion()[0] != myVersion[0]) {
@@ -969,8 +965,8 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "warning: different zlib version linked: %s\n", zVersion());
     }
 
-    printf("zlib version %s = 0x%04x, compile flags = 0x%lx\n",
-            PREFIX2(VERSION), PREFIX2(VERNUM), PREFIX(zlibCompileFlags)());
+    printf("zlib-ng version %s = 0x%08lx, compile flags = 0x%lx\n",
+            ZLIBNG_VERSION, ZLIBNG_VERNUM, PREFIX(zlibCompileFlags)());
 
     compr    = (unsigned char*)calloc((unsigned int)comprLen, 1);
     uncompr  = (unsigned char*)calloc((unsigned int)uncomprLen, 1);
@@ -997,7 +993,9 @@ int main(int argc, char *argv[]) {
 #endif
 
     test_flush(compr, &comprLen);
+#ifdef ZLIBNG_ENABLE_TESTS
     test_sync(compr, comprLen, uncompr, uncomprLen);
+#endif
     comprLen = uncomprLen;
 
     test_dict_deflate(compr, comprLen);

@@ -3,18 +3,11 @@
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
-#define _POSIX_SOURCE 1  /* This file needs POSIX for fileno(). */
-#define _POSIX_C_SOURCE 200112  /* For snprintf(). */
+#include "zbuild.h"
 
 #include <stdio.h>
-#include <stddef.h>
-#include <stdint.h>
-#include <string.h>
 #include <assert.h>
-#include <stdlib.h>
-#include <inttypes.h>
 
-#include "zbuild.h"
 #include "zutil.h"
 
 #if defined(_WIN32) || defined(__CYGWIN__)
@@ -110,7 +103,7 @@ void deflate_params(FILE *fin, FILE *fout, int32_t read_buf_size, int32_t write_
             err = PREFIX(deflate)(&c_stream, Z_FINISH);
             if (err == Z_STREAM_END) break;
             CHECK_ERR(err, "deflate");
-        } while (err == Z_OK);
+        } while (1);
     }
 
     /* Output remaining data in write buffer */
@@ -196,7 +189,7 @@ void inflate_params(FILE *fin, FILE *fout, int32_t read_buf_size, int32_t write_
             err = PREFIX(inflate)(&d_stream, Z_FINISH);
             if (err == Z_STREAM_END) break;
             CHECK_ERR(err, "inflate");
-        } while (err == Z_OK);
+        } while (1);
     }
 
     /* Output remaining data in write buffer */
@@ -285,7 +278,7 @@ int main(int argc, char **argv) {
         } else if (argv[i][0] == '-') {
             show_help();
             return 64;   /* EX_USAGE */
-        } else 
+        } else
             break;
     }
 
@@ -331,7 +324,14 @@ int main(int argc, char **argv) {
             free(out_file);
         }
     }
-    
+
+    if (window_bits == INT32_MAX) {
+        window_bits = MAX_WBITS;
+        /* Auto-detect wrapper for inflateInit */
+        if (uncompr)
+            window_bits += 32;
+    }
+
     if (window_bits == INT32_MAX) {
         window_bits = MAX_WBITS;
         /* Auto-detect wrapper for inflateInit */
