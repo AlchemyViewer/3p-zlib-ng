@@ -11,17 +11,11 @@
 #undef NDEBUG
 #include <assert.h>
 #include <inttypes.h>
-#include <stdint.h>
 
 /* get definition of internal structure so we can mess with it (see pull()),
    and so we can call inflate_trees() (see cover5()) */
-#define ZLIB_INTERNAL
 #include "zbuild.h"
-#ifdef ZLIB_COMPAT
-#  include "zlib.h"
-#else
-#  include "zlib-ng.h"
-#endif
+#include "zutil.h"
 #include "inftrees.h"
 #include "inflate.h"
 
@@ -374,12 +368,14 @@ static void cover_support(void) {
     inf("3 0", "use fixed blocks", 0, -15, 1, Z_STREAM_END);
     inf("", "bad window size", 0, 1, 0, Z_STREAM_ERROR);
 
+#ifdef ZLIB_COMPAT
     mem_setup(&strm);
     strm.avail_in = 0;
     strm.next_in = NULL;
     ret = PREFIX(inflateInit_)(&strm, &PREFIX2(VERSION)[1], (int)sizeof(PREFIX3(stream)));
                                                 assert(ret == Z_VERSION_ERROR);
     mem_done(&strm, "wrong version");
+#endif
 
     strm.avail_in = 0;
     strm.next_in = NULL;
@@ -480,8 +476,11 @@ static void cover_back(void) {
     PREFIX3(stream) strm;
     unsigned char win[32768];
 
+#ifdef ZLIB_COMPAT
     ret = PREFIX(inflateBackInit_)(NULL, 0, win, 0, 0);
                                                 assert(ret == Z_VERSION_ERROR);
+#endif
+
     ret = PREFIX(inflateBackInit)(NULL, 0, win);
                                                 assert(ret == Z_STREAM_ERROR);
     ret = PREFIX(inflateBack)(NULL, NULL, NULL, NULL, NULL);

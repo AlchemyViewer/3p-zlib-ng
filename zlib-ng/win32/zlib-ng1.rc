@@ -1,5 +1,5 @@
 #include <winver.h>
-#include "../zlib-ng.h"
+#include "zlib-ng.h"
 
 VS_VERSION_INFO		VERSIONINFO
   FILEVERSION		ZLIBNG_VER_MAJOR,ZLIBNG_VER_MINOR,ZLIBNG_VER_REVISION,0

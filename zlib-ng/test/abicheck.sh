@@ -67,15 +67,14 @@ done
 # Choose reference repo and commit
 if test "$suffix" = ""
 then
-  # Reference is zlib 1.2.11
+  # Reference is zlib 1.2.13.
   ABI_GIT_REPO=https://github.com/madler/zlib.git
-  ABI_GIT_COMMIT=v1.2.11
+  ABI_GIT_COMMIT=04f42ceca40f73e2978b50e93806c2a18c1281fc
 else
-  # Reference is zlib-ng 2.0.0
+  # Reference is most recent zlib-ng develop with zlib 1.2.12 compatible api.
   ABI_GIT_REPO=https://github.com/zlib-ng/zlib-ng.git
-  ABI_GIT_COMMIT=2.0.0
+  ABI_GIT_COMMIT=e4614ebcb9b3e5b108dc983c155e4baf80882311
 fi
-# FIXME: even when using a tag, check the hash.
 
 # Test compat build for ABI compatibility with zlib
 if test "$CHOST" = ""
