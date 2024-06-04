@@ -4,11 +4,8 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [windows-2022, macos-11, ubuntu-22.04]
+        os: [windows-2022, macos-14, ubuntu-22.04]
         addrsize: ["64"]
-        include:
-          - os: windows-2022
-            addrsize: "32"
     runs-on: ${{ matrix.os }}
     steps:
       - uses: AlchemyViewer/action-autobuild@v4
