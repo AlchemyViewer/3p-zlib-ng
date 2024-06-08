@@ -29,7 +29,8 @@ source_environment_tempfile="$stage/source_environment.sh"
  
 VERSION_HEADER_FILE="$ZLIB_SOURCE_DIR/zlib.h.in"
 version=$(sed -n -E 's/#define ZLIBNG_VERSION "([0-9.]+)"/\1/p' "${VERSION_HEADER_FILE}")
-echo "${version}" > "${stage}/VERSION.txt"
+build=${AUTOBUILD_BUILD_ID:=0}
+echo "${version}.${build}" > "${stage}/VERSION.txt"
 
 # create stading dir structures
 mkdir -p "$stage/include/zlib"
