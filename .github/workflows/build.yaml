@@ -11,6 +11,8 @@ jobs:
       - uses: AlchemyViewer/action-autobuild@v4
         with:
           addrsize: ${{ matrix.addrsize }}
+          build-variables-repo: alchemyviewer/build-variables
+          build-variables-ref: alchemy
   release:
     needs: build
     runs-on: [ubuntu-latest]
