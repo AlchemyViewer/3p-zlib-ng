@@ -32,17 +32,17 @@ version=$(sed -n -E 's/#define ZLIBNG_VERSION "([0-9.]+)"/\1/p' "${VERSION_HEADE
 build=${AUTOBUILD_BUILD_ID:=0}
 echo "${version}.${build}" > "${stage}/VERSION.txt"
 
-# create stading dir structures
-mkdir -p "$stage/include/zlib"
-mkdir -p "$stage/lib/debug"
-mkdir -p "$stage/lib/release"
-
 pushd "$ZLIB_SOURCE_DIR"
     case "$AUTOBUILD_PLATFORM" in
 
         # ------------------------ windows, windows64 ------------------------
         windows*)
             load_vsvars
+
+            # create stading dir structures
+            mkdir -p "$stage/include/zlib"
+            mkdir -p "$stage/lib/debug"
+            mkdir -p "$stage/lib/release"
 
             mkdir -p "build"
             pushd "build"
@@ -74,6 +74,10 @@ pushd "$ZLIB_SOURCE_DIR"
 
             # deploy target
             export MACOSX_DEPLOYMENT_TARGET=${LL_BUILD_DARWIN_BASE_DEPLOY_TARGET}
+
+            # create stading dir structures
+            mkdir -p "$stage/include/zlib"
+            mkdir -p "$stage/lib/release"
 
             mkdir -p "build_x86"
             pushd "build_x86"
@@ -123,6 +127,10 @@ pushd "$ZLIB_SOURCE_DIR"
         linux*)
             # Default target per autobuild build --address-size
             opts="${TARGET_OPTS:--m$AUTOBUILD_ADDRSIZE $LL_BUILD_RELEASE_CFLAGS}"
+
+            # create stading dir structures
+            mkdir -p "$stage/include"
+            mkdir -p "$stage/lib"
 
             mkdir -p "build"
             pushd "build"
