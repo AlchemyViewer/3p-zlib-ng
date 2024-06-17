@@ -131,7 +131,7 @@ pushd "$ZLIB_SOURCE_DIR"
                 cmake .. -GNinja -DBUILD_SHARED_LIBS:BOOL=OFF -DZLIB_COMPAT:BOOL=ON \
                     -DCMAKE_BUILD_TYPE="Release" \
                     -DCMAKE_C_FLAGS="$opts" \
-                    -DCMAKE_INSTALL_PREFIX="$stage/release"
+                    -DCMAKE_INSTALL_PREFIX="$stage"
 
                 cmake --build . --config Release
                 cmake --install . --config Release
@@ -141,12 +141,6 @@ pushd "$ZLIB_SOURCE_DIR"
                     ctest -C Release
                 fi
             popd
-
-            # Copy libraries
-            cp -a ${stage}/release/lib/*.a ${stage}/lib/
-
-            # copy headers
-            mv $stage/release/include/* $stage/include/zlib
         ;;
     esac
     mkdir -p "$stage/LICENSES"

@@ -41,7 +41,7 @@
           </map>
           <key>manifest</key>
           <array>
-            <string>include/zlib/*.h</string>
+            <string>include/*</string>
             <string>LICENSES/zlib-ng.txt</string>
           </array>
           <key>name</key>
