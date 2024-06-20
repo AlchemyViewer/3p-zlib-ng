@@ -272,9 +272,7 @@ static int32_t updatewindow(PREFIX3(stream) *strm, const uint8_t *end, uint32_t 
     /* len state->wsize or less output bytes into the circular window */
     if (len >= state->wsize) {
         /* Only do this if the caller specifies to checksum bytes AND the platform requires
-         * it (s/390 being the primary exception to this. Also, for now, do the adler checksums
-         * if not a gzip based header. The inline adler checksums will come in the near future,
-         * possibly the next commit */
+         * it (s/390 being the primary exception to this) */
         if (INFLATE_NEED_CHECKSUM(strm) && cksum) {
             /* We have to split the checksum over non-copied and copied bytes */
             if (len > state->wsize)
@@ -1271,7 +1269,7 @@ int32_t Z_EXPORT PREFIX(inflateSync)(PREFIX3(stream) *strm) {
     /* if first time, start search in bit buffer */
     if (state->mode != SYNC) {
         state->mode = SYNC;
-        state->hold <<= state->bits & 7;
+        state->hold >>= state->bits & 7;
         state->bits -= state->bits & 7;
         len = 0;
         while (state->bits >= 8) {
