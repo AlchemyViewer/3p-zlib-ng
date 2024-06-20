@@ -71,6 +71,10 @@ pushd "$ZLIB_SOURCE_DIR"
             # Setup build flags
             C_OPTS_X86="-arch x86_64 $LL_BUILD_RELEASE_CFLAGS"
             C_OPTS_ARM64="-arch arm64 $LL_BUILD_RELEASE_CFLAGS"
+            CXX_OPTS_X86="-arch x86_64 $LL_BUILD_RELEASE_CXXFLAGS"
+            CXX_OPTS_ARM64="-arch arm64 $LL_BUILD_RELEASE_CXXFLAGS"
+            LINK_OPTS_X86="-arch x86_64 $LL_BUILD_RELEASE_LINKER"
+            LINK_OPTS_ARM64="-arch arm64 $LL_BUILD_RELEASE_LINKER"
 
             # deploy target
             export MACOSX_DEPLOYMENT_TARGET=${LL_BUILD_DARWIN_BASE_DEPLOY_TARGET}
@@ -125,8 +129,24 @@ pushd "$ZLIB_SOURCE_DIR"
 
         # -------------------------- linux, linux64 --------------------------
         linux*)
-            # Default target per autobuild build --address-size
-            opts="${TARGET_OPTS:--m$AUTOBUILD_ADDRSIZE $LL_BUILD_RELEASE_CFLAGS}"
+            # Linux build environment at Linden comes pre-polluted with stuff that can
+            # seriously damage 3rd-party builds.  Environmental garbage you can expect
+            # includes:
+            #
+            #    DISTCC_POTENTIAL_HOSTS     arch           root        CXXFLAGS
+            #    DISTCC_LOCATION            top            branch      CC
+            #    DISTCC_HOSTS               build_name     suffix      CXX
+            #    LSDISTCC_ARGS              repo           prefix      CFLAGS
+            #    cxx_version                AUTOBUILD      SIGN        CPPFLAGS
+            #
+            # So, clear out bits that shouldn't affect our configure-directed build
+            # but which do nonetheless.
+            #
+            unset DISTCC_HOSTS CFLAGS CPPFLAGS CXXFLAGS
+
+            # Default target per --address-size
+            opts_c="${TARGET_OPTS:--m$AUTOBUILD_ADDRSIZE $LL_BUILD_RELEASE_CFLAGS}"
+            opts_cxx="${TARGET_OPTS:--m$AUTOBUILD_ADDRSIZE $LL_BUILD_RELEASE_CXXFLAGS}"
 
             # create stading dir structures
             mkdir -p "$stage/include"
@@ -134,11 +154,11 @@ pushd "$ZLIB_SOURCE_DIR"
 
             mkdir -p "build"
             pushd "build"
-                CFLAGS="$opts" \
+                CFLAGS="$opts_c" \
                 CPPFLAGS="$LL_BUILD_RELEASE_MACROS" \
                 cmake .. -GNinja -DBUILD_SHARED_LIBS:BOOL=OFF -DZLIB_COMPAT:BOOL=ON \
                     -DCMAKE_BUILD_TYPE="Release" \
-                    -DCMAKE_C_FLAGS="$opts" \
+                    -DCMAKE_C_FLAGS="$opts_c" \
                     -DCMAKE_INSTALL_PREFIX="$stage"
 
                 cmake --build . --config Release
