@@ -122,7 +122,7 @@ endmacro()
 
 macro(check_avx512vnni_intrinsics)
     if(CMAKE_C_COMPILER_ID MATCHES "Intel")
-        if(CMAKE_HOST_UNIX OR APPLE)
+        if(CMAKE_HOST_UNIX OR APPLE OR CMAKE_C_COMPILER_ID MATCHES "IntelLLVM")
             set(AVX512VNNIFLAG "-mavx512f -mavx512bw -mavx512dq -mavx512vl -mavx512vnni")
         else()
             set(AVX512VNNIFLAG "/arch:AVX512")
@@ -206,6 +206,46 @@ macro(check_neon_compiler_flag)
         #endif
         int main() { return 0; }"
         NEON_AVAILABLE FAIL_REGEX "not supported")
+    # Check whether compiler native flag is enough for NEON support
+    # Some GCC versions don't enable FPU (vector unit) when using -march=native
+    if(NEON_AVAILABLE AND NATIVEFLAG AND (NOT "${ARCH}" MATCHES "aarch64"))
+        check_c_source_compiles(
+            "#include <arm_neon.h>
+            uint8x16_t f(uint8x16_t x, uint8x16_t y) {
+                return vaddq_u8(x, y);
+            }
+            int main(int argc, char* argv[]) {
+                uint8x16_t a = vdupq_n_u8(argc);
+                uint8x16_t b = vdupq_n_u8(argc);
+                uint8x16_t result = f(a, b);
+                return result[0];
+            }"
+            ARM_NEON_SUPPORT_NATIVE
+        )
+        if(NOT ARM_NEON_SUPPORT_NATIVE)
+            set(CMAKE_REQUIRED_FLAGS "${NATIVEFLAG} -mfpu=neon ${ZNOLTOFLAG}")
+            check_c_source_compiles(
+                "#include <arm_neon.h>
+                uint8x16_t f(uint8x16_t x, uint8x16_t y) {
+                    return vaddq_u8(x, y);
+                }
+                int main(int argc, char* argv[]) {
+                    uint8x16_t a = vdupq_n_u8(argc);
+                    uint8x16_t b = vdupq_n_u8(argc);
+                    uint8x16_t result = f(a, b);
+                    return result[0];
+                }"
+                ARM_NEON_SUPPORT_NATIVE_MFPU
+            )
+            if(ARM_NEON_SUPPORT_NATIVE_MFPU)
+                set(NEONFLAG "-mfpu=neon")
+            else()
+                # Remove local NEON_AVAILABLE variable and overwrite the cache
+                unset(NEON_AVAILABLE)
+                set(NEON_AVAILABLE "" CACHE INTERNAL "NEON support available" FORCE)
+            endif()
+        endif()
+    endif()
     set(CMAKE_REQUIRED_FLAGS)
 endmacro()
 
@@ -234,7 +274,7 @@ macro(check_neon_ld4_intrinsics)
 endmacro()
 
 macro(check_pclmulqdq_intrinsics)
-    if(CMAKE_C_COMPILER_ID MATCHES "GNU" OR CMAKE_C_COMPILER_ID MATCHES "Clang")
+    if(CMAKE_C_COMPILER_ID MATCHES "GNU" OR CMAKE_C_COMPILER_ID MATCHES "Clang" OR CMAKE_C_COMPILER_ID MATCHES "IntelLLVM")
         if(NOT NATIVEFLAG)
             set(PCLMULFLAG "-mpclmul")
         endif()
@@ -257,7 +297,7 @@ macro(check_pclmulqdq_intrinsics)
 endmacro()
 
 macro(check_vpclmulqdq_intrinsics)
-    if(CMAKE_C_COMPILER_ID MATCHES "GNU" OR CMAKE_C_COMPILER_ID MATCHES "Clang")
+    if(CMAKE_C_COMPILER_ID MATCHES "GNU" OR CMAKE_C_COMPILER_ID MATCHES "Clang" OR CMAKE_C_COMPILER_ID MATCHES "IntelLLVM")
         if(NOT NATIVEFLAG)
             set(VPCLMULFLAG "-mvpclmulqdq -mavx512f")
         endif()
@@ -364,6 +404,21 @@ macro(check_power8_intrinsics)
         }"
         HAVE_POWER8_INTRIN
     )
+    if(NOT HAVE_POWER8_INTRIN AND HAVE_LINUX_AUXVEC_H)
+        check_c_source_compiles(
+            "#include <sys/auxv.h>
+            #include <linux/auxvec.h>
+            int main() {
+                return (getauxval(AT_HWCAP2) & PPC_FEATURE2_ARCH_2_07);
+            }"
+            HAVE_POWER8_INTRIN2
+        )
+        if(HAVE_POWER8_INTRIN2)
+            set(POWER8_NEED_AUXVEC_H 1)
+            set(HAVE_POWER8_INTRIN ${HAVE_POWER8_INTRIN2} CACHE INTERNAL "Have POWER8 intrinsics" FORCE)
+            unset(HAVE_POWER8_INTRIN2 CACHE)
+        endif()
+    endif()
     set(CMAKE_REQUIRED_FLAGS)
 endmacro()
 
@@ -422,6 +477,21 @@ macro(check_power9_intrinsics)
         }"
         HAVE_POWER9_INTRIN
     )
+    if(NOT HAVE_POWER9_INTRIN AND HAVE_LINUX_AUXVEC_H)
+        check_c_source_compiles(
+            "#include <sys/auxv.h>
+            #include <linux/auxvec.h>
+            int main() {
+                return (getauxval(AT_HWCAP2) & PPC_FEATURE2_ARCH_3_00);
+            }"
+            HAVE_POWER9_INTRIN2
+        )
+        if(HAVE_POWER9_INTRIN2)
+            set(POWER9_NEED_AUXVEC_H 1)
+            set(HAVE_POWER9_INTRIN ${HAVE_POWER9_INTRIN2} CACHE INTERNAL "Have POWER9 intrinsics" FORCE)
+            unset(HAVE_POWER9_INTRIN2 CACHE)
+        endif()
+    endif()
     set(CMAKE_REQUIRED_FLAGS)
 endmacro()
 
@@ -526,15 +596,17 @@ macro(check_vgfma_intrinsics)
 endmacro()
 
 macro(check_xsave_intrinsics)
-    if(NOT NATIVEFLAG AND NOT MSVC)
+    if(NOT NATIVEFLAG AND NOT MSVC AND NOT CMAKE_C_COMPILER_ID MATCHES "Intel")
         set(XSAVEFLAG "-mxsave")
     endif()
     set(CMAKE_REQUIRED_FLAGS "${XSAVEFLAG} ${NATIVEFLAG} ${ZNOLTOFLAG}")
     check_c_source_compiles(
         "#ifdef _MSC_VER
         #  include <intrin.h>
+        #elif __GNUC__ == 8 && __GNUC_MINOR__ > 1
+        #  include <xsaveintrin.h>
         #else
-        #  include <x86gprintrin.h>
+        #  include <immintrin.h>
         #endif
         unsigned int f(unsigned int a) { return (int) _xgetbv(a); }
         int main(void) { return 0; }"

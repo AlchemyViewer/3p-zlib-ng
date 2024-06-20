@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.5.1)
 if(CMAKE_VERSION VERSION_LESS 3.12)
     cmake_policy(VERSION ${CMAKE_VERSION})
 else()
-    cmake_policy(VERSION 3.5.1...3.13.2)
+    cmake_policy(VERSION 3.5.1...3.29.0)
 endif()
 message(STATUS "Using CMake version ${CMAKE_VERSION}")
 
@@ -42,6 +42,7 @@ include(CheckCSourceCompiles)
 include(CheckCSourceRuns)
 include(CheckCCompilerFlag)
 include(CMakeDependentOption)
+include(CMakePackageConfigHelpers)
 include(FeatureSummary)
 
 include(cmake/detect-arch.cmake)
@@ -172,6 +173,12 @@ if(CMAKE_C_COMPILER_ID MATCHES "^Intel")
         set(WARNFLAGS /Wall)
         set(WARNFLAGS_MAINTAINER /W5)
         set(WARNFLAGS_DISABLE)
+    endif()
+    check_c_compiler_flag(-diag-disable=10441 HAVE_DIAG_10441)
+    if(HAVE_DIAG_10441)
+        list(APPEND WARNFLAGS_DISABLE "-diag-disable=10441")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -diag-disable=10441")
+        set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -diag-disable=10441")
     endif()
 elseif(MSVC)
     # Minimum supported MSVC version is 1800 = Visual Studio 12.0/2013
@@ -325,6 +332,14 @@ if(HAVE_SYS_SDT_H)
     add_definitions(-DHAVE_SYS_SDT_H)
 endif()
 check_include_file(unistd.h    HAVE_UNISTD_H)
+
+#
+# Check for Linux includes
+#
+check_include_file(linux/auxvec.h HAVE_LINUX_AUXVEC_H)
+if(HAVE_LINUX_AUXVEC_H)
+    add_definitions(-DHAVE_LINUX_AUXVEC_H)
+endif()
 
 #
 # Check to see if we have large file support
@@ -685,8 +700,13 @@ if(WITH_OPTIM)
         if(WITH_POWER9)
             check_power9_intrinsics()
         endif()
-        if(HAVE_VMX OR HAVE_POWER8_INTRIN OR HAVE_POWER9_INTRIN)
+        if(POWER8_NEED_AUXVEC_H OR POWER9_NEED_AUXVEC_H)
+            add_definitions(-DPOWER_NEED_AUXVEC_H)
+        endif()
+        if(HAVE_POWER8_INTRIN OR HAVE_POWER9_INTRIN)
             add_definitions(-DPOWER_FEATURES)
+        endif()
+        if(HAVE_VMX OR HAVE_POWER8_INTRIN OR HAVE_POWER9_INTRIN)
             list(APPEND ZLIB_ARCH_HDRS ${ARCHDIR}/power_features.h)
             list(APPEND ZLIB_ARCH_SRCS ${ARCHDIR}/power_features.c)
         endif()
@@ -906,6 +926,9 @@ if(WITH_OPTIM)
         if(HAVE_XSAVE_INTRIN)
             add_feature_info(XSAVE 1 "Support XSAVE intrinsics using \"${XSAVEFLAG}\"")
             set_property(SOURCE ${ARCHDIR}/x86_features.c PROPERTY COMPILE_FLAGS "${XSAVEFLAG}")
+            if(NOT (CMAKE_C_COMPILER_ID MATCHES "GNU" AND CMAKE_C_COMPILER_VERSION VERSION_LESS 8.2))
+                add_definitions(-DX86_HAVE_XSAVE_INTRIN)
+            endif()
         endif()
     endif()
 endif()
@@ -1067,12 +1090,27 @@ else()
     set(ZLIB_INSTALL_LIBRARIES zlib)
 endif()
 
+# INFO: Mimics official zlib CMake target
+# Generates ZLIB.cmake in case ZLIB_COMPAT=ON and always exports the CMake target ZLIB::ZLIB
+# In case ZLIB_COMPAT=OFF, the CMake target and file follows zlib-ng naming convention
+if (ZLIB_COMPAT)
+    if (TARGET zlib)
+        set_target_properties(zlib PROPERTIES EXPORT_NAME ZLIB)
+    else()
+        set_target_properties(zlibstatic PROPERTIES EXPORT_NAME ZLIB)
+    endif()
+endif()
+
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(${ARCHDIR})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/arch/generic)
+
 foreach(ZLIB_INSTALL_LIBRARY ${ZLIB_INSTALL_LIBRARIES})
     if(NOT ZLIB_COMPAT)
         target_compile_definitions(${ZLIB_INSTALL_LIBRARY} PUBLIC ZLIBNG_NATIVE_API)
     endif()
     target_include_directories(${ZLIB_INSTALL_LIBRARY} PUBLIC
-        "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR};${CMAKE_CURRENT_SOURCE_DIR}>"
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}$<SEMICOLON>${CMAKE_CURRENT_SOURCE_DIR}>"
         "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>")
 endforeach()
 
@@ -1124,7 +1162,7 @@ if(NOT DEFINED BUILD_SHARED_LIBS OR BUILD_SHARED_LIBS)
         if(HAVE_NO_INTERPOSITION)
             set_target_properties(zlib PROPERTIES COMPILE_FLAGS "-fno-semantic-interposition")
         endif()
-        if(NOT APPLE)
+        if(NOT APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL AIX)
             if(NOT ZLIB_COMPAT)
                 add_definitions(-DHAVE_SYMVER)
             endif()
@@ -1183,6 +1221,7 @@ endif()
 
 if(NOT SKIP_INSTALL_LIBRARIES AND NOT SKIP_INSTALL_ALL)
     install(TARGETS ${ZLIB_INSTALL_LIBRARIES}
+        EXPORT ${EXPORT_NAME}
         RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
         ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
         LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}")
@@ -1197,22 +1236,30 @@ if(NOT SKIP_INSTALL_HEADERS AND NOT SKIP_INSTALL_ALL)
 endif()
 if(NOT SKIP_INSTALL_FILES AND NOT SKIP_INSTALL_ALL)
     install(FILES ${ZLIB_PC} DESTINATION "${PKGCONFIG_INSTALL_DIR}")
-    # INFO: Mimics official zlib CMake target
-    # Generates ZLIB.cmake in case ZLIB_COMPAT=ON and always exports the CMake target ZLIB::ZLIB
-    # In case ZLIB_COMPAT=OFF, the CMake target and file follows zlib-ng naming convention
-    if (ZLIB_COMPAT)
-        if (TARGET zlib)
-            set_target_properties(zlib PROPERTIES EXPORT_NAME ZLIB)
-        else()
-            set_target_properties(zlibstatic PROPERTIES EXPORT_NAME ZLIB)
-        endif()
-    endif()
-    install(TARGETS ${ZLIB_INSTALL_LIBRARIES}
-        EXPORT ${EXPORT_NAME}
-        DESTINATION "${CMAKE_INSTALL_LIBDIR}")
     install(EXPORT ${EXPORT_NAME}
         DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${EXPORT_NAME}"
         NAMESPACE ${EXPORT_NAME}::)
+    # Use GNU-style variable names
+    set(INCLUDE_INSTALL_DIR ${CMAKE_INSTALL_INCLUDEDIR})
+    set(LIB_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR})
+    if (ZLIB_COMPAT)
+       set(PACKAGE_CONFIGNAME zlib)
+       set(PACKAGE_VERSION ${ZLIB_HEADER_VERSION})
+    else()
+       set(PACKAGE_CONFIGNAME zlib-ng)
+       set(PACKAGE_VERSION ${ZLIBNG_HEADER_VERSION})
+    endif()
+    configure_package_config_file(${PACKAGE_CONFIGNAME}-config.cmake.in
+        ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_CONFIGNAME}-config.cmake
+        INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${EXPORT_NAME}
+        PATH_VARS INCLUDE_INSTALL_DIR LIB_INSTALL_DIR)
+    write_basic_package_version_file(
+        ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_CONFIGNAME}-config-version.cmake
+        VERSION ${PACKAGE_VERSION}
+        COMPATIBILITY AnyNewerVersion)
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_CONFIGNAME}-config.cmake
+                  ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_CONFIGNAME}-config-version.cmake
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${EXPORT_NAME})
 endif()
 
 #============================================================================
