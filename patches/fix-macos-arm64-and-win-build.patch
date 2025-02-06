@@ -1,13 +1,13 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index fba3575d..c0bd04fd 100644
+index b97c2021..f30a5140 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
 @@ -193,7 +193,7 @@ elseif(MSVC)
      # /Oi ?
      set(WARNFLAGS /W3 /w34242 /WX)
      set(WARNFLAGS_MAINTAINER /W4)
--    set(WARNFLAGS_DISABLE /wd4206 /wd4054)
-+    set(WARNFLAGS_DISABLE /wd4206 /wd4054 /wd4267)
+-    set(WARNFLAGS_DISABLE /wd4206 /wd4054 /wd4324)
++    set(WARNFLAGS_DISABLE /wd4206 /wd4054 /wd4324 /wd4267)
      if(BASEARCH_ARM_FOUND)
          add_definitions(-D_ARM_WINAPI_PARTITION_DESKTOP_SDK_AVAILABLE)
          if(NOT "${ARCH}" MATCHES "aarch64")
@@ -34,7 +34,7 @@ index dfdc6013..a021550b 100644
      set(BASEARCH_ARM_FOUND TRUE)
  elseif("${ARCH}" MATCHES "ppc(64(le)?)?|powerpc(64(le)?)?")
 diff --git a/cmake/detect-intrinsics.cmake b/cmake/detect-intrinsics.cmake
-index 1906f215..593b3123 100644
+index b96ac0a4..13277db2 100644
 --- a/cmake/detect-intrinsics.cmake
 +++ b/cmake/detect-intrinsics.cmake
 @@ -178,7 +178,7 @@ endmacro()
