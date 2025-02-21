@@ -11,7 +11,7 @@ This repository vendors boost using submodules. Be sure to pull them when clonin
 
 Fresh clone:
 ```
-git clone --recurse-submodules git@github.com:secondlife/3p-zlib-ng.git
+git clone --recursive https://github.com/AlchemyViewer/3p-zlib-ng.git
 ```
 
 Existing checkout:
