@@ -7,7 +7,7 @@
 
 ## Submodules
 
-This repository vendors boost using submodules. Be sure to pull them when cloning or updating this repository.
+This repository vendors zlib-ng using submodules. Be sure to pull them when cloning or updating this repository.
 
 Fresh clone:
 ```
