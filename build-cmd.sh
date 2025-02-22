@@ -39,31 +39,29 @@ pushd "$ZLIB_SOURCE_DIR"
         windows*)
             load_vsvars
 
-            # zlib-ng already has a win32 folder and win32 build will fail
-            mkdir -p "WIN"
-            pushd "WIN"
+            mkdir -p "build_release"
+            pushd "build_release"
+                opts="$(replace_switch /Zi /Z7 $LL_BUILD_RELEASE)"
+                plainopts="$(remove_switch /GR $(remove_cxxstd $opts))"
 
-            opts="$(replace_switch /Zi /Z7 $LL_BUILD_RELEASE)"
-            plainopts="$(remove_switch /GR $(remove_cxxstd $opts))"
+                cmake -G "Ninja" .. -DBUILD_SHARED_LIBS=OFF -DZLIB_COMPAT:BOOL=ON \
+                        -DCMAKE_BUILD_TYPE="Release" \
+                        -DCMAKE_C_FLAGS="$plainopts" \
+                        -DCMAKE_CXX_FLAGS="$opts /EHsc" \
+                        -DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT="Embedded" \
+                        -DCMAKE_INSTALL_PREFIX="$(cygpath -m $stage)" \
+                        -DCMAKE_INSTALL_LIBDIR="$(cygpath -m "$stage/lib/release")" \
+                        -DCMAKE_INSTALL_INCLUDEDIR="$(cygpath -m "$stage/include/zlib-ng")"
 
-            cmake -G "Ninja Multi-Config" .. -DBUILD_SHARED_LIBS=OFF -DZLIB_COMPAT:BOOL=ON \
-                    -DCMAKE_C_FLAGS="$plainopts" \
-                    -DCMAKE_CXX_FLAGS="$opts /EHsc" \
-                    -DCMAKE_INSTALL_PREFIX="$(cygpath -m $stage)" \
-                    -DCMAKE_INSTALL_LIBDIR="$(cygpath -m "$stage/lib/release")" \
-                    -DCMAKE_INSTALL_INCLUDEDIR="$(cygpath -m "$stage/include/zlib-ng")"
+                cmake --build . --config Release --parallel $AUTOBUILD_CPU_COUNT
+                cmake --install . --config Release
 
-            cmake --build . --config Release --parallel $AUTOBUILD_CPU_COUNT
-            cmake --install . --config Release
+                # conditionally run unit tests
+                if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
+                    ctest -C Release --parallel $AUTOBUILD_CPU_COUNT
+                fi
 
-            # conditionally run unit tests
-            if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
-                ctest -C Release --parallel $AUTOBUILD_CPU_COUNT
-            fi
-
-            mv "$stage/lib/release/zlibstatic.lib" "$stage/lib/release/zlib.lib"
-
-            # WIN
+                mv "$stage/lib/release/zlibstatic.lib" "$stage/lib/release/zlib.lib"
             popd
         ;;
 
