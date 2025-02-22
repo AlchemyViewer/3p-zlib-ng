@@ -27,6 +27,11 @@ source "$(dirname "$AUTOBUILD_VARIABLES_FILE")/functions"
 
 apply_patch "$top/patches/fix-macos-arm64-and-win-build.patch" "$ZLIB_SOURCE_DIR"
 
+VERSION_HEADER_FILE="$ZLIB_SOURCE_DIR/zlib.h.in"
+version=$(sed -n -E 's/#define ZLIBNG_VERSION "([0-9.]+)"/\1/p' "${VERSION_HEADER_FILE}")
+build=${AUTOBUILD_BUILD_ID:=0}
+echo "${version}.${build}" > "${stage}/VERSION.txt"
+
 pushd "$ZLIB_SOURCE_DIR"
     case "$AUTOBUILD_PLATFORM" in
 
