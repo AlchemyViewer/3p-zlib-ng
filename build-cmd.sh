@@ -39,6 +39,31 @@ pushd "$ZLIB_SOURCE_DIR"
         windows*)
             load_vsvars
 
+            mkdir -p "build_debug"
+            pushd "build_debug"
+                opts="$(replace_switch /Zi /Z7 $LL_BUILD_DEBUG)"
+                plainopts="$(remove_switch /GR $(remove_cxxstd $opts))"
+
+                cmake -G "Ninja" .. -DBUILD_SHARED_LIBS=OFF -DZLIB_COMPAT:BOOL=ON \
+                        -DCMAKE_BUILD_TYPE="Debug" \
+                        -DCMAKE_C_FLAGS_DEBUG="$plainopts" \
+                        -DCMAKE_CXX_FLAGS_DEBUG="$opts /EHsc" \
+                        -DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT="Embedded" \
+                        -DCMAKE_INSTALL_PREFIX="$(cygpath -m $stage)" \
+                        -DCMAKE_INSTALL_LIBDIR="$(cygpath -m "$stage/lib/debug")" \
+                        -DCMAKE_INSTALL_INCLUDEDIR="$(cygpath -m "$stage/include/zlib-ng")"
+
+                cmake --build . --config Debug --parallel $AUTOBUILD_CPU_COUNT
+                cmake --install . --config Debug
+
+                # conditionally run unit tests
+                if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
+                    ctest -C Debug --parallel $AUTOBUILD_CPU_COUNT
+                fi
+
+                mv "$stage/lib/debug/zlibstaticd.lib" "$stage/lib/debug/zlibd.lib"
+            popd
+
             mkdir -p "build_release"
             pushd "build_release"
                 opts="$(replace_switch /Zi /Z7 $LL_BUILD_RELEASE)"
