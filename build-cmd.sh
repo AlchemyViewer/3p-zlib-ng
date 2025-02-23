@@ -44,8 +44,8 @@ pushd "$ZLIB_SOURCE_DIR"
                 opts="$(replace_switch /Zi /Z7 $LL_BUILD_DEBUG)"
                 plainopts="$(remove_switch /GR $(remove_cxxstd $opts))"
 
-                cmake -G "Ninja" .. -DBUILD_SHARED_LIBS=OFF -DZLIB_COMPAT:BOOL=ON \
-                        -DCMAKE_BUILD_TYPE="Debug" \
+                cmake -G "$AUTOBUILD_WIN_CMAKE_GEN" -A "$AUTOBUILD_WIN_VSPLATFORM" .. -DBUILD_SHARED_LIBS=OFF -DZLIB_COMPAT:BOOL=ON \
+                        -DCMAKE_CONFIGURATION_TYPES="Debug" \
                         -DCMAKE_C_FLAGS_DEBUG="$plainopts" \
                         -DCMAKE_CXX_FLAGS_DEBUG="$opts /EHsc" \
                         -DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT="Embedded" \
@@ -69,8 +69,8 @@ pushd "$ZLIB_SOURCE_DIR"
                 opts="$(replace_switch /Zi /Z7 $LL_BUILD_RELEASE)"
                 plainopts="$(remove_switch /GR $(remove_cxxstd $opts))"
 
-                cmake -G "Ninja" .. -DBUILD_SHARED_LIBS=OFF -DZLIB_COMPAT:BOOL=ON \
-                        -DCMAKE_BUILD_TYPE="Release" \
+                cmake -G "$AUTOBUILD_WIN_CMAKE_GEN" -A "$AUTOBUILD_WIN_VSPLATFORM" .. -DBUILD_SHARED_LIBS=OFF -DZLIB_COMPAT:BOOL=ON \
+                        -DCMAKE_CONFIGURATION_TYPES="Release" \
                         -DCMAKE_C_FLAGS="$plainopts" \
                         -DCMAKE_CXX_FLAGS="$opts /EHsc" \
                         -DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT="Embedded" \
@@ -104,8 +104,8 @@ pushd "$ZLIB_SOURCE_DIR"
                 pushd "build_$arch"
                     CFLAGS="$cc_opts" \
                     LDFLAGS="$ld_opts" \
-                    cmake .. -G "Ninja Multi-Config" -DBUILD_SHARED_LIBS:BOOL=OFF -DZLIB_COMPAT:BOOL=ON \
-                        -DCMAKE_BUILD_TYPE="Release" \
+                    cmake .. -G "Xcode" -DBUILD_SHARED_LIBS:BOOL=OFF -DZLIB_COMPAT:BOOL=ON \
+                        -DCMAKE_CONFIGURATION_TYPES="Release" \
                         -DCMAKE_C_FLAGS="$cc_opts" \
                         -DCMAKE_CXX_FLAGS="$cc_opts" \
                         -DCMAKE_INSTALL_PREFIX="$stage" \
