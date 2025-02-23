@@ -4,9 +4,9 @@
     <key>package_description</key>
     <map>
       <key>canonical_repo</key>
-      <string>https://github.com/secondlife/3p-zlib-ng</string>
+      <string>https://github.com/AlchemyViewer/3p-zlib-ng</string>
       <key>copyright</key>
-      <string>Copyright (C) 1995-2013 Jean-loup Gailly and Mark Adler</string>
+      <string>Copyright (C) 1995-2024 Jean-loup Gailly and Mark Adler</string>
       <key>description</key>
       <string>zlib data compression library for the next generation systems</string>
       <key>license</key>
@@ -108,6 +108,7 @@
           </map>
           <key>manifest</key>
           <array>
+            <string>lib/debug/zlibd.lib</string>
             <string>lib/release/zlib.lib</string>
           </array>
           <key>name</key>
