@@ -108,8 +108,10 @@
           </map>
           <key>manifest</key>
           <array>
-            <string>lib/debug/zlibd.lib</string>
-            <string>lib/release/zlib.lib</string>
+            <string>lib/sse/debug/zlibd.lib</string>
+            <string>lib/sse/release/zlib.lib</string>
+            <string>lib/avx2/debug/zlibd.lib</string>
+            <string>lib/avx2/release/zlib.lib</string>
           </array>
           <key>name</key>
           <string>windows</string>
