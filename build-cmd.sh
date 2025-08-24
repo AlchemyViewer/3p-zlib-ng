@@ -41,19 +41,21 @@ pushd "$ZLIB_SOURCE_DIR"
 
             for arch in sse avx2 arm64 ; do
                 platform_target="x64"
-                if [[ "$arch" == "avx2" ]]; then
-                    opts="$(replace_switch /arch:SSE4.2 /arch:AVX2 $opts)"
-                elif [[ "$arch" == "avx2" ]]; then
+                if [[ "$arch" == "arm64" ]]; then
                     platform_target="ARM64"
                 fi
 
                 mkdir -p "build_debug_$arch"
                 pushd "build_debug_$arch"
                     opts="$(replace_switch /Zi /Z7 $LL_BUILD_DEBUG)"
+                    if [[ "$arch" == "avx2" ]]; then
+                        opts="$(replace_switch /arch:SSE4.2 /arch:AVX2 $opts)"
+                    elif [[ "$arch" == "arm64" ]]; then
+                        opts="$(remove_switch /arch:SSE4.2 $opts)"
+                    fi
                     plainopts="$(remove_switch /GR $(remove_cxxstd $opts))"
 
-                    cmake -G "$AUTOBUILD_WIN_CMAKE_GEN" -A "$AUTOBUILD_WIN_VSPLATFORM" .. -DBUILD_SHARED_LIBS=OFF -DZLIB_COMPAT:BOOL=ON \
-                            -DCMAKE_GENERATOR_PLATFORM="$platform_target" \
+                    cmake -G "$AUTOBUILD_WIN_CMAKE_GEN" -A "$platform_target" .. -DBUILD_SHARED_LIBS=OFF -DZLIB_COMPAT:BOOL=ON \
                             -DCMAKE_CONFIGURATION_TYPES="Debug" \
                             -DCMAKE_C_FLAGS_DEBUG="$plainopts" \
                             -DCMAKE_CXX_FLAGS_DEBUG="$opts /EHsc" \
@@ -66,7 +68,7 @@ pushd "$ZLIB_SOURCE_DIR"
                     cmake --install . --config Debug
 
                     # conditionally run unit tests
-                    if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
+                    if [[ "${DISABLE_UNIT_TESTS:-0}" == "0" && "$arch" != "arm64" ]]; then
                         ctest -C Debug --parallel $AUTOBUILD_CPU_COUNT
                     fi
 
@@ -76,9 +78,14 @@ pushd "$ZLIB_SOURCE_DIR"
                 mkdir -p "build_release_$arch"
                 pushd "build_release_$arch"
                     opts="$(replace_switch /Zi /Z7 $LL_BUILD_RELEASE)"
+                    if [[ "$arch" == "avx2" ]]; then
+                        opts="$(replace_switch /arch:SSE4.2 /arch:AVX2 $opts)"
+                    elif [[ "$arch" == "arm64" ]]; then
+                        opts="$(remove_switch /arch:SSE4.2 $opts)"
+                    fi
                     plainopts="$(remove_switch /GR $(remove_cxxstd $opts))"
 
-                    cmake -G "$AUTOBUILD_WIN_CMAKE_GEN" -A "$AUTOBUILD_WIN_VSPLATFORM" .. -DBUILD_SHARED_LIBS=OFF -DZLIB_COMPAT:BOOL=ON \
+                    cmake -G "$AUTOBUILD_WIN_CMAKE_GEN" -A "$platform_target" .. -DBUILD_SHARED_LIBS=OFF -DZLIB_COMPAT:BOOL=ON \
                             -DCMAKE_CONFIGURATION_TYPES="Release" \
                             -DCMAKE_C_FLAGS="$plainopts" \
                             -DCMAKE_CXX_FLAGS="$opts /EHsc" \
@@ -91,7 +98,7 @@ pushd "$ZLIB_SOURCE_DIR"
                     cmake --install . --config Release
 
                     # conditionally run unit tests
-                    if [ "${DISABLE_UNIT_TESTS:-0}" = "0" ]; then
+                    if [[ "${DISABLE_UNIT_TESTS:-0}" == "0" && "$arch" != "arm64" ]]; then
                         ctest -C Release --parallel $AUTOBUILD_CPU_COUNT
                     fi
 
