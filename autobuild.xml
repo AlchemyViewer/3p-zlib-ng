@@ -112,6 +112,8 @@
             <string>lib/sse/release/zlib.lib</string>
             <string>lib/avx2/debug/zlibd.lib</string>
             <string>lib/avx2/release/zlib.lib</string>
+            <string>lib/arm64/debug/zlibd.lib</string>
+            <string>lib/arm64/release/zlib.lib</string>
           </array>
           <key>name</key>
           <string>windows</string>
